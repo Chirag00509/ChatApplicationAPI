@@ -28,20 +28,6 @@ namespace WebApplication1.Controllers
             return await _context.User.ToListAsync();
         }
 
-        // GET: api/User/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<User>> GetUser(int id)
-        {
-            var user = await _context.User.FindAsync(id);
-
-            if (user == null)
-            {
-                return NotFound();
-            }
-
-            return user;
-        }
-
         // PUT: api/User/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
@@ -78,6 +64,18 @@ namespace WebApplication1.Controllers
         [HttpPost]
         public async Task<ActionResult<User>> PostUser(User user)
         {
+            var email  = _context.User.Any(u => u.Email == user.Email);
+
+            if (email)
+            {
+                return Conflict(new { message = "Registration failed because the email is already registered." });
+            }
+
+            if(!ModelState.IsValid)
+            {
+                return BadRequest(new { message = "Registration failed due to validation errors." });
+            }
+
             _context.User.Add(user);
             await _context.SaveChangesAsync();
 
