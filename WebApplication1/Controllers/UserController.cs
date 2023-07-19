@@ -13,6 +13,10 @@ using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.VisualBasic;
+using NuGet.ContentModel;
+using System.Diagnostics.Metrics;
+using System.Numerics;
 
 namespace WebApplication1.Controllers
 {
@@ -21,6 +25,7 @@ namespace WebApplication1.Controllers
     public class UserController : ControllerBase
     {
         private readonly ChatContext _context;
+
         //private readonly ChatContext _configuration;
         IConfiguration _configuration;
 
@@ -32,18 +37,16 @@ namespace WebApplication1.Controllers
 
         // GET: api/User
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<User>>> GetUser(string token)
+        public async Task<ActionResult<IEnumerable<User>>> GetUser()
         {
-            var user = await _context.User.FirstOrDefaultAsync(u => u.accessToken == token);
+            int id = GetUserId(HttpContext);
 
-            Console.WriteLine(user.Id);
-
-            if (user == null)
+            if (id == -1)
             {
                 return Unauthorized(new { message = "Unauthorized access" });
             }
 
-            var users =  _context.User.Where(u => u.Id != user.Id).ToList();
+            var users = _context.User.Where(u => u.Id != id).ToList();
             return Ok(users);
         }
 
@@ -100,10 +103,21 @@ namespace WebApplication1.Controllers
             return _context.User.Any(e => e.Id == id);
         }
 
-        private string getToken(int id, string name, string email )
+        private int GetUserId(HttpContext context)
         {
-            var claims = new[] {
-                new Claim(JwtRegisteredClaimNames.Sub, _configuration["Jwt:Subject"]),
+            var authorizationHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+
+            var token = authorizationHeader?.Replace("Bearer ", "");
+
+            var user = _context.User.FirstOrDefault(u => u.accessToken == token);
+
+            return user?.Id ?? -1;
+        }
+
+        private string getToken(int id, string name, string email )
+    {
+        var claims = new[] {
+            new Claim(JwtRegisteredClaimNames.Sub, _configuration["Jwt:Subject"]),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim(JwtRegisteredClaimNames.Iat, DateTime.UtcNow.ToString()),
                 new Claim("Id", id.ToString()),
