@@ -28,49 +28,34 @@ namespace WebApplication1.Controllers
             return await _context.Message.ToListAsync();
         }
 
-        // GET: api/Message/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Message>> GetMessage(int id)
-        {
-            var message = await _context.Message.FindAsync(id);
-
-            if (message == null)
-            {
-                return NotFound();
-            }
-
-            return message;
-        }
-
         // PUT: api/Message/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutMessage(int id, Message message)
         {
-            if (id != message.Id)
+            var userId = GetUserId(HttpContext);
+            if(userId == -1)
             {
-                return BadRequest();
+                return Unauthorized(new { message = "Unauthorized message" });
             }
 
-            _context.Entry(message).State = EntityState.Modified;
-
-            try
+            if(!ModelState.IsValid) 
             {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!MessageExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
+                return BadRequest(new { message = "message editing failed due to validation errors." });
             }
 
-            return NoContent();
+            var messages = await _context.Message.FirstOrDefaultAsync(u => u.Id == id);
+
+            if (messages == null)
+            {
+                return NotFound(new { message = "message not found" });
+            }
+
+            //_context.Entry(message).State = EntityState.Modified;
+
+            messages.content = message.content;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Message edited successfully" });
         }
 
         // POST: api/Message
@@ -80,7 +65,7 @@ namespace WebApplication1.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(new { message = "Registration failed due to validation errors." });
+                return BadRequest(new { message = "message sending failed due to validation errors." });
             }
 
             int userId = GetUserId(HttpContext);
@@ -91,6 +76,7 @@ namespace WebApplication1.Controllers
              }
 
             message.SenderId = userId;
+            message.Timestemp = DateTime.Now;
 
             _context.Message.Add(message);
             await _context.SaveChangesAsync();
@@ -106,13 +92,20 @@ namespace WebApplication1.Controllers
             var message = await _context.Message.FindAsync(id);
             if (message == null)
             {
-                return NotFound();
+                return NotFound(new { message = "Message not found" });
+            }
+
+            var userId = GetUserId(HttpContext);
+
+            if(userId == -1)
+            {
+                return Unauthorized(new { message = "Unauthorized access" });
             }
 
             _context.Message.Remove(message);
             await _context.SaveChangesAsync();
 
-            return NoContent();
+            return Ok(new { message = "Message deleted Successfully" });
         }
 
         private int GetUserId(HttpContext context)
