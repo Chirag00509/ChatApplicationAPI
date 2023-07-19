@@ -10,5 +10,10 @@
         public string Password { get; set; }
 
         public string accessToken { get; set; }
+
+        //public ICollection<Message> Receiver { get; set; }
+
+        //public ICollection<Message> Sender { get; set; }
+
     }
 }

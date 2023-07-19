@@ -115,8 +115,8 @@ namespace WebApplication1.Controllers
         }
 
         private string getToken(int id, string name, string email )
-    {
-        var claims = new[] {
+        {
+            var claims = new[] {
             new Claim(JwtRegisteredClaimNames.Sub, _configuration["Jwt:Subject"]),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim(JwtRegisteredClaimNames.Iat, DateTime.UtcNow.ToString()),
