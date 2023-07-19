@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -23,9 +24,59 @@ namespace WebApplication1.Controllers
 
         // GET: api/Message
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Message>>> GetMessage()
+        public async Task<ActionResult<IEnumerable<Message>>> GetMessage(Message message)
         {
-            return await _context.Message.ToListAsync();
+            var userId = GetUserId(HttpContext);
+
+            if(userId == -1)
+            {
+                return Unauthorized(new { message = "Unauthorized access" });
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new { message = "invalid request parameter." });
+            }
+
+            var currentTime = DateTime.Now;
+
+            if (message.before.Equals(1-01-0001)) 
+            {
+                Console.WriteLine("Hello");
+            }
+
+            var count  = message.count;
+
+            var query = _context.Message.
+                Where(u => u.ReceiverId == message.userId &&
+                (message.before.Equals(DateTime.MinValue) ? u.Timestemp < currentTime : u.Timestemp < message.before));
+            if(message.sort == "desc") 
+            {
+                query = query.OrderByDescending(u => u.Timestemp);
+            }
+            else
+            {
+                query = query.OrderBy(u => u.Timestemp);
+            }
+
+             var messages =  query.Take(count == 0 ? 20 : count)
+                .Select(u => new
+                {
+                    id = u.Id,
+                    senderId = u.SenderId,
+                    receiverId = u.ReceiverId,
+                    content = u.content,
+                    timestamp = u.Timestemp
+                })
+                .ToList();
+
+
+            if (messages == null)
+            {
+                return NotFound(new { message = "User or conversation not found" });
+            }
+
+            return Ok(messages);
         }
 
         // PUT: api/Message/5
