@@ -9,6 +9,10 @@ using Microsoft.EntityFrameworkCore;
 using WebApplication1.Data;
 using WebApplication1.Modal;
 using System.Security.Cryptography;
+using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Authorization;
 
 namespace WebApplication1.Controllers
 {
@@ -17,17 +21,30 @@ namespace WebApplication1.Controllers
     public class UserController : ControllerBase
     {
         private readonly ChatContext _context;
+        //private readonly ChatContext _configuration;
+        IConfiguration _configuration;
 
-        public UserController(ChatContext context)
+        public UserController(ChatContext context, IConfiguration configuration)
         {
             _context = context;
+            _configuration = configuration;
         }
 
         // GET: api/User
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<User>>> GetUser()
+        public async Task<ActionResult<IEnumerable<User>>> GetUser(string token)
         {
-            return await _context.User.ToListAsync();
+            var user = await _context.User.FirstOrDefaultAsync(u => u.accessToken == token);
+
+            Console.WriteLine(user.Id);
+
+            if (user == null)
+            {
+                return Unauthorized(new { message = "Unauthorized access" });
+            }
+
+            var users =  _context.User.Where(u => u.Id != user.Id).ToList();
+            return Ok(users);
         }
 
         [HttpPost("/api/register")]
@@ -45,8 +62,9 @@ namespace WebApplication1.Controllers
                 return BadRequest(new { message = "Registration failed due to validation errors." });
             }
 
-            var convertPassword = hashPassword(user.Password);
 
+            var convertPassword = hashPassword(user.Password);
+            
             user.Password = convertPassword;
             _context.User.Add(user);
             await _context.SaveChangesAsync();
@@ -71,12 +89,41 @@ namespace WebApplication1.Controllers
                 return BadRequest(new { message = "Login failed due to validation errors." });
             }
 
-            return Ok(new { message = "Successfull" });
+            var token = getToken(users.Id, users.Name, users.Email);
+            users.accessToken = token;
+            await _context.SaveChangesAsync();
+            return Ok(users);
         }
 
         private bool UserExists(int id)
         {
             return _context.User.Any(e => e.Id == id);
+        }
+
+        private string getToken(int id, string name, string email )
+        {
+            var claims = new[] {
+                new Claim(JwtRegisteredClaimNames.Sub, _configuration["Jwt:Subject"]),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim(JwtRegisteredClaimNames.Iat, DateTime.UtcNow.ToString()),
+                new Claim("Id", id.ToString()),
+                new Claim("Name", name),
+                new Claim("Email", email)
+            };
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
+            var signIn = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var token = new JwtSecurityToken(
+                _configuration["Jwt:Issuer"],
+                _configuration["Jwt:Audience"],
+                claims,
+                expires: DateTime.UtcNow.AddMinutes(10),
+                signingCredentials: signIn);
+
+
+            string Token = new JwtSecurityTokenHandler().WriteToken(token);
+
+            return Token;
         }
 
         private string hashPassword(string password)
