@@ -44,9 +44,9 @@ namespace WebApplication1.Controllers
 
             var id = currentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            if (id == null)
+            if (!HttpContext.User.Identity.IsAuthenticated)
             {
-                return Unauthorized(new { message = "Unauthorized access" });
+                return Unauthorized( new { message = "Unauthorized access" } );
             }
             var users = await _context.User.Where(u => u.Id != Convert.ToInt32(id))
                 .Select(u => new UserProfile
@@ -54,6 +54,7 @@ namespace WebApplication1.Controllers
                     Id = u.Id,
                     Name = u.Name,
                     Email = u.Email,
+
                 })
                 .ToListAsync();
 
@@ -125,12 +126,6 @@ namespace WebApplication1.Controllers
 
             return Ok(response);
         }
-
-        private bool UserExists(int id)
-        {
-            return _context.User.Any(e => e.Id == id);
-        }
-
         private string getToken(int id, string name, string email )
         {
             var claims = new[] {

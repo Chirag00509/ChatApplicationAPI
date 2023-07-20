@@ -1,6 +1,8 @@
 ﻿using Azure.Core;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using NuGet.Packaging.Signing;
+using System.Security.Claims;
 using System.Text;
 using WebApplication1.Data;
 using static System.Reflection.Metadata.BlobBuilder;
@@ -10,26 +12,38 @@ namespace WebApplication1.Middlewares
     public class LoggingMiddleware : IMiddleware
     {
         private readonly ILogger<LoggingMiddleware> _logger;
-        private readonly List<string> _logs;
+        private readonly ChatContext _dbcontext;
 
-        public LoggingMiddleware(ILogger<LoggingMiddleware> logger)
+        public LoggingMiddleware(ILogger<LoggingMiddleware> logger, ChatContext dbcontext)
         {
             _logger = logger;
-            _logs = new List<string>();
+            _dbcontext = dbcontext;
         }
 
         public async Task InvokeAsync(HttpContext context, RequestDelegate next) 
         {
+            var userName = context.User.FindFirst(ClaimTypes.Name)?.Value;
+            Console.WriteLine(context.User);
 
             string ip = context.Connection.RemoteIpAddress?.ToString();
-            string requestBody = await getRequestBodyAsync(context.Request);
-            string timeStamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            string username = context.User.Identity.IsAuthenticated ? context.User.Identity.Name : "";
+            string RequestBody = await getRequestBodyAsync(context.Request);
+            string TimeStamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            string UserName = userName;
 
-            string log = $"IP: {ip}, Username: {username}, Timestamp: {timeStamp}, Request Body: {requestBody}";
+
+            string log = $"IP: {ip}, Username: {UserName}, Timestamp: {TimeStamp}, Request Body: {RequestBody}";
 
             _logger.LogInformation(log);
-            _logs.Add(log);
+
+            _dbcontext.Logs.Add(new Modal.Logs
+            {
+                Ip = ip,
+                RequestBody = RequestBody,
+                TimeStamp = TimeStamp,
+                Username = UserName,    
+            });
+
+            await _dbcontext.SaveChangesAsync();
 
             await next(context);
         }
@@ -45,10 +59,5 @@ namespace WebApplication1.Middlewares
 
             return requestBody;
         }
-        public List<string> GetLogs()
-        {
-            return _logs;
-        }
-
     }
 }

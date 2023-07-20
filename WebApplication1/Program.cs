@@ -10,7 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
-builder.Services.AddSingleton<LoggingMiddleware>();
+builder.Services.AddScoped<LoggingMiddleware>();
 
 builder.Services.AddDbContext<ChatContext>(opt =>
  opt.UseSqlServer(builder.Configuration.GetConnectionString("ChatContext")));
@@ -52,7 +52,6 @@ else
     app.UseMigrationsEndPoint();
 }
 
-app.UseMiddleware<LoggingMiddleware>();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -67,6 +66,7 @@ app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<LoggingMiddleware>();
 
 app.MapControllers();
 

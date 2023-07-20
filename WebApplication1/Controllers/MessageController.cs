@@ -82,7 +82,13 @@ namespace WebApplication1.Controllers
                 return BadRequest(new { message = "message editing failed due to validation errors." });
             }
 
+            if(id != message.SenderId)
+            {
+                return Unauthorized(new { message = "Unauthorized access" } );
+            }
+
             var messages = await _context.Message.FirstOrDefaultAsync(u => u.Id == id);
+
 
             if (messages == null)
             {
@@ -141,11 +147,6 @@ namespace WebApplication1.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Message deleted Successfully" });
-        }
-
-        private bool MessageExists(int id)
-        {
-            return _context.Message.Any(e => e.Id == id);
         }
     }
 }

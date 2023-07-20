@@ -13,6 +13,7 @@ namespace WebApplication1.Data
         {
             modelBuilder.Entity<User>().ToTable("User");
             modelBuilder.Entity<Message>().ToTable("Message");
+            modelBuilder.Entity<Logs>().ToTable("Logs");
 
             modelBuilder.Entity<Message>()
                 .HasOne(m => m.Sender)
@@ -29,5 +30,6 @@ namespace WebApplication1.Data
 
         public DbSet<User> User { get; set; }
         public DbSet<Message> Message { get; set; }
+        public DbSet<Logs> Logs { get; set; }
     }
 }

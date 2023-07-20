@@ -1,9 +1,14 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using WebApplication1.Data;
-using WebApplication1.Middlewares;
+using WebApplication1.Modal;
 
 namespace WebApplication1.Controllers
 {
@@ -12,17 +17,26 @@ namespace WebApplication1.Controllers
     [Authorize]
     public class LogController : ControllerBase
     {
-        private readonly LoggingMiddleware _loggingMiddleware;
-        public LogController(LoggingMiddleware loggingMiddleware)
+        private readonly ChatContext _context;
+
+        public LogController(ChatContext context)
         {
-            _loggingMiddleware = loggingMiddleware;
+            _context = context;
         }
 
+        // GET: api/Log
         [HttpGet]
-        public IActionResult Get()
+        public async Task<ActionResult<IEnumerable<Logs>>> GetLogs()
         {
-            var logs = _loggingMiddleware.GetLogs();
+            var logs = await _context.Logs.ToListAsync();
+
+            logs.ForEach(log =>
+            {
+                log.RequestBody = JsonConvert.DeserializeObject<string>(log.RequestBody);
+            });
+
             return Ok(logs);
+
         }
     }
 }
