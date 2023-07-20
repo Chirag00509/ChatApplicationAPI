@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using NuGet.Packaging.Signing;
 using WebApplication1.Data;
 using WebApplication1.Modal;
 
@@ -28,12 +29,24 @@ namespace WebApplication1.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Logs>>> GetLogs()
         {
-            var logs = await _context.Logs.ToListAsync();
-
-            logs.ForEach(log =>
+            var logs = _context.Logs.Select(u => new 
             {
-                log.RequestBody = JsonConvert.DeserializeObject<string>(log.RequestBody);
+                Id = u.id,
+                Ip = u.Ip,
+                Username = u.Username,
+                RequestBody = u.RequestBody.Replace("\n","").Replace("\"", ""),
+                TimeStamp = u.TimeStamp,
             });
+
+            if(logs == null)
+            {
+                return NotFound(new { message = "Logs not found" });
+            }
+
+            if(!ModelState.IsValid)
+            {
+                return BadRequest(new { message = "Invalid request parameters" });
+            }
 
             return Ok(logs);
 

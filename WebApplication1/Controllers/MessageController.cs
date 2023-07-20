@@ -77,17 +77,19 @@ namespace WebApplication1.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> PutMessage(int id, Message message)
         {
-            if(!ModelState.IsValid) 
+            var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var messages = await _context.Message.FirstOrDefaultAsync(u => u.Id == id);
+
+            if (!ModelState.IsValid) 
             {
                 return BadRequest(new { message = "message editing failed due to validation errors." });
             }
 
-            if(id != message.SenderId)
+            if(Convert.ToInt32(userId) != messages.SenderId)
             {
                 return Unauthorized(new { message = "Unauthorized access" } );
             }
 
-            var messages = await _context.Message.FirstOrDefaultAsync(u => u.Id == id);
 
 
             if (messages == null)
@@ -137,10 +139,17 @@ namespace WebApplication1.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteMessage(int id)
         {
+            var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             var message = await _context.Message.FindAsync(id);
             if (message == null)
             {
                 return NotFound(new { message = "Message not found" });
+            }
+
+            if (Convert.ToInt32(userId) != message.SenderId)
+            {
+                return Unauthorized(new { message = "Unauthorized access" });
             }
 
             _context.Message.Remove(message);
