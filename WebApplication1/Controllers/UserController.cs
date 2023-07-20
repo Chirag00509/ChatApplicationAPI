@@ -37,16 +37,26 @@ namespace WebApplication1.Controllers
 
         // GET: api/User
         [HttpGet]
+        [Authorize]
         public async Task<ActionResult<IEnumerable<User>>> GetUser()
         {
-            int id = GetUserId(HttpContext);
+            var currentUser = HttpContext.User;
 
-            if (id == -1)
+            var id = currentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (id == null)
             {
                 return Unauthorized(new { message = "Unauthorized access" });
             }
+            var users = await _context.User.Where(u => u.Id != Convert.ToInt32(id))
+                .Select(u => new UserProfile
+                {
+                    Id = u.Id,
+                    Name = u.Name,
+                    Email = u.Email,
+                })
+                .ToListAsync();
 
-            var users = _context.User.Where(u => u.Id != id).ToList();
             return Ok(users);
         }
 
@@ -72,15 +82,22 @@ namespace WebApplication1.Controllers
             _context.User.Add(user);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetUser", new { id = user.Id }, user);
+            var Profile = new UserProfile
+            {
+                Id = user.Id,
+                Name = user.Name,
+                Email = user.Email,
+            };
+
+            return CreatedAtAction("GetUser", new { id = user.Id }, Profile);
         }
 
         [HttpPost("/api/login")]
 
-        public async Task<ActionResult<User>> login(string email, string password) 
+        public async Task<ActionResult<Login>> login(Login login) 
         {
-            var convertPassword = hashPassword(password);
-            var users = await _context.User.FirstOrDefaultAsync(u=> u.Email == email &&  u.Password == convertPassword ); 
+            var convertPassword = hashPassword(login.Password);
+            var users = await _context.User.FirstOrDefaultAsync(u=> u.Email == login.Email &&  u.Password == convertPassword ); 
 
             if (users == null)
             {
@@ -93,9 +110,20 @@ namespace WebApplication1.Controllers
             }
 
             var token = getToken(users.Id, users.Name, users.Email);
-            users.accessToken = token;
-            await _context.SaveChangesAsync();
-            return Ok(users);
+
+            var response = new LoginResponse
+            {
+                Token = token,
+
+                Profile = new UserProfile
+                {
+                    Id = users.Id,
+                    Name = users.Name,  
+                    Email = users.Email,
+                }
+            };
+
+            return Ok(response);
         }
 
         private bool UserExists(int id)
@@ -103,26 +131,12 @@ namespace WebApplication1.Controllers
             return _context.User.Any(e => e.Id == id);
         }
 
-        private int GetUserId(HttpContext context)
-        {
-            var authorizationHeader = context.Request.Headers["Authorization"].FirstOrDefault();
-
-            var token = authorizationHeader?.Replace("Bearer ", "");
-
-            var user = _context.User.FirstOrDefault(u => u.accessToken == token);
-
-            return user?.Id ?? -1;
-        }
-
         private string getToken(int id, string name, string email )
         {
             var claims = new[] {
-            new Claim(JwtRegisteredClaimNames.Sub, _configuration["Jwt:Subject"]),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim(JwtRegisteredClaimNames.Iat, DateTime.UtcNow.ToString()),
-                new Claim("Id", id.ToString()),
-                new Claim("Name", name),
-                new Claim("Email", email)
+                new Claim(ClaimTypes.NameIdentifier, id.ToString()),
+                new Claim(ClaimTypes.Name, name),
+                new Claim(ClaimTypes.Email, email)
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));

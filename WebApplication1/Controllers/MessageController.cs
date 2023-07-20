@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +15,8 @@ namespace WebApplication1.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
+
     public class MessageController : ControllerBase
     {
         private readonly ChatContext _context;
@@ -24,15 +28,10 @@ namespace WebApplication1.Controllers
 
         // GET: api/Message
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Message>>> GetMessage(Message message)
+
+        public async Task<ActionResult<IEnumerable<Message>>> GetMessage(History history)
         {
-            var userId = GetUserId(HttpContext);
-
-            if(userId == -1)
-            {
-                return Unauthorized(new { message = "Unauthorized access" });
-            }
-
+           
             if (!ModelState.IsValid)
             {
                 return BadRequest(new { message = "invalid request parameter." });
@@ -40,17 +39,12 @@ namespace WebApplication1.Controllers
 
             var currentTime = DateTime.Now;
 
-            if (message.before.Equals(1-01-0001)) 
-            {
-                Console.WriteLine("Hello");
-            }
-
-            var count  = message.count;
+            var count  = history.count;
 
             var query = _context.Message.
-                Where(u => u.ReceiverId == message.userId &&
-                (message.before.Equals(DateTime.MinValue) ? u.Timestemp < currentTime : u.Timestemp < message.before));
-            if(message.sort == "desc") 
+                Where(u => u.ReceiverId == history.userId &&
+                (history.before.Equals(DateTime.MinValue) ? u.Timestemp < currentTime : u.Timestemp < history.before));
+            if(history.sort == "desc") 
             {
                 query = query.OrderByDescending(u => u.Timestemp);
             }
@@ -83,12 +77,6 @@ namespace WebApplication1.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> PutMessage(int id, Message message)
         {
-            var userId = GetUserId(HttpContext);
-            if(userId == -1)
-            {
-                return Unauthorized(new { message = "Unauthorized message" });
-            }
-
             if(!ModelState.IsValid) 
             {
                 return BadRequest(new { message = "message editing failed due to validation errors." });
@@ -100,8 +88,6 @@ namespace WebApplication1.Controllers
             {
                 return NotFound(new { message = "message not found" });
             }
-
-            //_context.Entry(message).State = EntityState.Modified;
 
             messages.content = message.content;
             await _context.SaveChangesAsync();
@@ -119,20 +105,25 @@ namespace WebApplication1.Controllers
                 return BadRequest(new { message = "message sending failed due to validation errors." });
             }
 
-            int userId = GetUserId(HttpContext);
+            var currentUser = HttpContext.User;
+            var userId = currentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            if (userId == -1) 
-            {
-                return Unauthorized(new { message = "Unauthorized access" });
-             }
-
-            message.SenderId = userId;
+            message.SenderId = Convert.ToInt32(userId);
             message.Timestemp = DateTime.Now;
 
             _context.Message.Add(message);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetMessage", new { id = message.Id }, message);
+            var messageResponse = new MessageResponse
+            {
+                MessageId = message.Id,
+                SenderId = message.SenderId,
+                ReceiverId = message.ReceiverId,
+                Content = message.content,
+                Timestemp = message.Timestemp,
+            };
+
+            return Ok(messageResponse);
 
         }
 
@@ -146,30 +137,11 @@ namespace WebApplication1.Controllers
                 return NotFound(new { message = "Message not found" });
             }
 
-            var userId = GetUserId(HttpContext);
-
-            if(userId == -1)
-            {
-                return Unauthorized(new { message = "Unauthorized access" });
-            }
-
             _context.Message.Remove(message);
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Message deleted Successfully" });
         }
-
-        private int GetUserId(HttpContext context)
-        {
-            var authorizationHeader = context.Request.Headers["Authorization"].FirstOrDefault();
-
-            var token = authorizationHeader?.Replace("Bearer ", "");
-
-            var user = _context.User.FirstOrDefault(u => u.accessToken == token);
-
-            return user?.Id ?? -1;
-        }
-
 
         private bool MessageExists(int id)
         {
