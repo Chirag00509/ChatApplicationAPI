@@ -45,7 +45,7 @@ namespace WebApplication1.Controllers
 
             var messages = _context.Message
                 .Where(u => (u.SenderId == Convert.ToInt32(currentId) && u.ReceiverId == id) ||
-                            (u.SenderId == id && u.ReceiverId == id))
+                            (u.SenderId == id && u.ReceiverId == Convert.ToInt32(currentId)))
             //    &&
             //    (history.before.Equals(DateTime.MinValue) ? u.Timestemp < currentTime : u.Timestemp < history.before));
             //if(history.sort == "desc") 
