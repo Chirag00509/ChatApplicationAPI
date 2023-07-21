@@ -34,7 +34,7 @@ namespace WebApplication1.Controllers
                 Id = u.id,
                 Ip = u.Ip,
                 Username = u.Username,
-                RequestBody = u.RequestBody.Replace("\n","").Replace("\"", ""),
+                RequestBody = u.RequestBody.Replace("\n","").Replace("\"", "").Replace("\r",""),
                 TimeStamp = u.TimeStamp,
             });
 

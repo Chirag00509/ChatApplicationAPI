@@ -27,33 +27,37 @@ namespace WebApplication1.Controllers
         }
 
         // GET: api/Message
-        [HttpGet]
+        [HttpGet("{id}")]
 
-        public async Task<ActionResult<IEnumerable<Message>>> GetMessage(History history)
+        public async Task<IActionResult> GetMessage(int id)
         {
            
             if (!ModelState.IsValid)
             {
                 return BadRequest(new { message = "invalid request parameter." });
             }
+            
+            var currentId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             var currentTime = DateTime.Now;
 
-            var count  = history.count;
+            //var count  = history.count;
 
-            var query = _context.Message.
-                Where(u => u.ReceiverId == history.userId &&
-                (history.before.Equals(DateTime.MinValue) ? u.Timestemp < currentTime : u.Timestemp < history.before));
-            if(history.sort == "desc") 
-            {
-                query = query.OrderByDescending(u => u.Timestemp);
-            }
-            else
-            {
-                query = query.OrderBy(u => u.Timestemp);
-            }
+            var messages = _context.Message
+                .Where(u => (u.SenderId == Convert.ToInt32(currentId) && u.ReceiverId == id) ||
+                            (u.SenderId == id && u.ReceiverId == id))
+            //    &&
+            //    (history.before.Equals(DateTime.MinValue) ? u.Timestemp < currentTime : u.Timestemp < history.before));
+            //if(history.sort == "desc") 
+            //{
+            //    query = query.OrderByDescending(u => u.Timestemp);
+            //}
+            //else
+            //{
+            //    query = query.OrderBy(u => u.Timestemp);
+            //}
 
-             var messages =  query.Take(count == 0 ? 20 : count)
+            // var messages =  query.Take(count == 0 ? 20 : count)
                 .Select(u => new
                 {
                     id = u.Id,

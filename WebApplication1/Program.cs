@@ -15,8 +15,9 @@ builder.Services.AddScoped<LoggingMiddleware>();
 builder.Services.AddDbContext<ChatContext>(opt =>
  opt.UseSqlServer(builder.Configuration.GetConnectionString("ChatContext")));
 
-builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+builder.Services.AddCors(options => { options.AddDefaultPolicy(builder => { builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader(); }); });
 
+builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
 {
@@ -67,7 +68,7 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<LoggingMiddleware>();
-
+app.UseCors();
 app.MapControllers();
 
 app.Run();
