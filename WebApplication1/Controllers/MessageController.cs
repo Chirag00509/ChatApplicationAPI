@@ -143,9 +143,14 @@ namespace WebApplication1.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteMessage(int id)
         {
+            Console.WriteLine(id);
             var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            Console.WriteLine(userId);
 
             var message = await _context.Message.FindAsync(id);
+
+            Console.WriteLine(message.SenderId);
+
             if (message == null)
             {
                 return NotFound(new { message = "Message not found" });

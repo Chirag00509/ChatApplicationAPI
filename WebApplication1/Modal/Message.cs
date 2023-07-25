@@ -8,7 +8,6 @@
         public User Sender { get; set; }
         public int ReceiverId { get; set;}
         public User Receiver { get; set; }
-        public int userId { get; set; }
         public string content { get; set; }
 
         public DateTime Timestemp { get; set; }

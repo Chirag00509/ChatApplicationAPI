@@ -23,7 +23,6 @@ namespace WebApplication1.Middlewares
         public async Task InvokeAsync(HttpContext context, RequestDelegate next) 
         {
             var userName = context.User.FindFirst(ClaimTypes.Name)?.Value;
-            Console.WriteLine(context.User);
 
             string ip = context.Connection.RemoteIpAddress?.ToString();
             string RequestBody = await getRequestBodyAsync(context.Request);
